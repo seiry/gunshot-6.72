@@ -19,13 +19,13 @@ int main(void){@autoreleasepool{
  Class modern=Fixture("ModernCompletion","didCompleteWithSuccess:resultantMediaItem:error:","v36@0:8B16@20@28");
  Class wrong=Fixture("WrongCompletion","didCompleteWithSuccess:resultantMediaItem:error:","v36@0:8B16@20q28");
  Class absent=Fixture("MissingCompletion",NULL,NULL);
- for(id value in @[@123,NSNull.null,@"",@"7.20.1",@"7.20.2",@"7.50",@"7.92.0",@"8.0",@"unknown"]){
+ for(id value in @[@123,NSNull.null,@"",@"6.72.0",@"6.72",@"7.20.1",@"7.20.2",@"7.50",@"7.92.0",@"8.0",@"unknown"]){
   version=value;assert(GSPhotosHostSupported());
   assert(GSPhotosCompletionForClass(legacy)==GSPhotosCompletionCode);
   assert(GSPhotosCompletionForClass(modern)==GSPhotosCompletionObject);
   assert(GSPhotosCompletionForClass(wrong)==GSPhotosCompletionUnavailable);
   assert(GSPhotosCompletionForClass(absent)==GSPhotosCompletionUnavailable);
-  assert(GSPhotosHostAudited()==([value isEqual:@"7.20.2"]||[value isEqual:@"7.92.0"]));
+  assert(GSPhotosHostAudited()==([value isEqual:@"6.72.0"]||[value isEqual:@"6.72"]||[value isEqual:@"7.20.2"]||[value isEqual:@"7.92.0"]));
  }
  // Mixed generations are selected per class; modern wins only with a valid ABI.
  class_addMethod(legacy,sel_registerName("didCompleteWithSuccess:resultantMediaItem:error:"),(IMP)Done,"v36@0:8B16@20@28");

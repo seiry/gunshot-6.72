@@ -122,7 +122,7 @@ static BOOL GSCheckPhotosGlass(GSPanel *panel,UIWindow *window){
  Method info=class_getInstanceMethod(NSBundle.class,@selector(objectForInfoDictionaryKey:));GSOriginalBundleInfo=(void *)method_setImplementation(info,(IMP)GSGlassBundleInfo);
  @try{
   GS_GLASS_CHECK(GSFixturePhotosGlassContracts());
-  for(id version in @[@"7.20.2",@"7.91.9",@"7.9.20",@"unknown",@"",@"7.92.0-beta",@"7.92.0.1",@42]){GSGlassFixturePhotosVersion=version;GS_GLASS_CHECK(!GSPhotosGlassAvailable());}
+  for(id version in @[@"6.72.0",@"7.20.2",@"7.91.9",@"7.9.20",@"unknown",@"",@"7.92.0-beta",@"7.92.0.1",@42]){GSGlassFixturePhotosVersion=version;GS_GLASS_CHECK(!GSPhotosGlassAvailable());}
   for(NSString *version in @[@"7.92",@"7.92.0",@"7.100.0",@"8.0.0"]){GSGlassFixturePhotosVersion=version;GS_GLASS_CHECK(GSPhotosGlassAvailable()==modern);}
   GSGlassFixturePhotosVersion=@"7.92.0";[NSUserDefaults.standardUserDefaults setBool:NO forKey:@"GSPhotosBottomBarLiquidGlass"];
 

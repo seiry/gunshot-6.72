@@ -9,7 +9,7 @@ static inline BOOL GSPhotosHostSupported(void) {
 }
 static inline BOOL GSPhotosHostAudited(void) {
  id version=[NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
- return GSPhotosHostSupported()&&([version isEqual:@"7.20.2"]||[version isEqual:@"7.92.0"]);
+ return GSPhotosHostSupported()&&([version isEqual:@"6.72.0"]||[version isEqual:@"6.72"]||[version isEqual:@"7.20.2"]||[version isEqual:@"7.92.0"]);
 }
 static inline BOOL GSPhotosHasMethod(Class cls,NSString *name,const char *abi) {
  Method method=class_getInstanceMethod(cls,NSSelectorFromString(name));

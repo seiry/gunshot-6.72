@@ -118,6 +118,9 @@ static BOOL GSHasConfirmedOriginal(id controller){
  if(GSMethod(photo,@"storagePolicy","C16@0:8")){
   GSNativeReads++;unsigned char policy=((unsigned char(*)(id,SEL))objc_msgSend)(photo,NSSelectorFromString(@"storagePolicy"));GSNativeReads--;
   GSCount([NSString stringWithFormat:@"serverStoragePolicy%u",(unsigned)policy]);
+ }else if(GSMethod(photo,@"storagePolicy","i16@0:8")){
+  GSNativeReads++;int policy=((int(*)(id,SEL))objc_msgSend)(photo,NSSelectorFromString(@"storagePolicy"));GSNativeReads--;
+  GSCount([NSString stringWithFormat:@"serverStoragePolicy%d",policy]);
  }
  return YES;
 }

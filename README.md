@@ -4,7 +4,7 @@
 
 A Google Photos uploader for jailbreak, sideloading and LiveContainer, using the Go core from [xob0t/gotohp](https://github.com/xob0t/gotohp). Jailbreak builds upload through a separate daemon; jailed builds run inside Google Photos.
 
-**Development build.** Automatically selects compatible legacy or modern native APIs **per feature**, without a version-number allowlist. The IPA-audited reference versions are **7.20.2 (iOS 16.1+)** and **7.92.0 (iOS 18.0+)**. Other releases can work when their APIs match; this is not a claim of device verification. See the [compatibility audit](docs/analysis/google-photos-7.20.2.md).
+**Development build.** Automatically selects compatible legacy or modern native APIs **per feature**, without a version-number allowlist. The IPA-audited reference versions are **6.72.0 (iOS 15.0+)**, **7.20.2 (iOS 16.1+)** and **7.92.0 (iOS 18.0+)**. Other releases can work when their APIs match; this is not a claim of device verification. See the compatibility audits for [6.72.0](docs/analysis/google-photos-6.72.0.md) and [7.20.2](docs/analysis/google-photos-7.20.2.md).
 
 ## Screenshots
 

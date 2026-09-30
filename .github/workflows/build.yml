@@ -162,10 +162,11 @@ jobs:
           .build/native-account-test
           clang -fobjc-arc -framework Foundation -Itests/menu-shims -Itests/native-shims UI/GSAccountMenu.m tests/account_menu.m -o .build/account-menu-test
           .build/account-menu-test
-      - name: Google Photos 7.20.2 native contracts
+      - name: Google Photos 6.72.0 and 7.20.2 legacy native contracts
         run: |
           clang -fobjc-arc -framework Foundation UI/GSUnlimitedStorage.m tests/unlimited_storage_legacy.m -o .build/unlimited-storage-legacy-test
           .build/unlimited-storage-legacy-test
+          .build/unlimited-storage-legacy-test subtitle-only
           .build/unlimited-storage-legacy-test missing-resources
           clang -fobjc-arc -DGS_TEST_LEGACY=1 -framework Foundation -Itests/native-shims UI/GSNativeRouting.m tests/native_routing.m -o .build/native-routing-legacy-test
           .build/native-routing-legacy-test
@@ -185,7 +186,7 @@ jobs:
         run: |
           clang -fobjc-arc -framework Foundation tests/photos_compatibility.m -o .build/photos-compatibility-test
           .build/photos-compatibility-test
-          for version in 7.20.1 7.50.0 7.93.0 8.0.0 unknown; do
+          for version in 6.72.0 7.20.1 7.50.0 7.93.0 8.0.0 unknown; do
             export GS_TEST_PHOTOS_VERSION="$version"
             .build/unlimited-storage-test
             .build/unlimited-storage-test incompatible-abi

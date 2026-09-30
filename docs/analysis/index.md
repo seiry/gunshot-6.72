@@ -4,7 +4,7 @@
 
 | 対象 | 参照先 |
 | --- | --- |
-| 7.20.2 / 7.92.0 の API・ABI 差分、必要 OS | [互換性監査](google-photos-7.20.2.md) / [7.20.2 contracts](objc/7.20.2-contracts.json) |
+| 6.72.0 / 7.20.2 / 7.92.0 の API・ABI 差分、必要 OS | [6.72.0 互換性監査](google-photos-6.72.0.md) / [7.20.2 互換性監査](google-photos-7.20.2.md) / [6.72.0 contracts](objc/6.72.0-contracts.json) / [7.20.2 contracts](objc/7.20.2-contracts.json) |
 | 全クラス・instance selector・encoding・static IMP | [機械可読索引と検索方法](objc/README.md) / [入力 hash・件数](objc/manifest.json) |
 | 手動・自動バックアップの使い方、対応経路、診断 | [バックアップ転送](../native-routing.md) |
 | 共通要求の移譲・再照合・画質 | [処理の解析と回帰修正](backup-routing.md) |

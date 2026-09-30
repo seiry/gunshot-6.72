@@ -1,7 +1,7 @@
 #import "../UI/GSUnlimitedStorage.h"
 #import <objc/runtime.h>
 #include <assert.h>
-static BOOL ready,throwEncode;
+static BOOL ready,throwEncode,useSubtitleKey;
 static NSUInteger actions;
 @interface BundleFixture : NSObject @end
 @implementation BundleFixture
@@ -11,8 +11,15 @@ static id Bundle(id object,SEL selector){return [BundleFixture new];}
 @interface GSNativeStringsBundle : NSBundle @end
 @implementation GSNativeStringsBundle
 - (NSString *)localizedStringForKey:(NSString *)key value:(NSString *)value table:(NSString *)table{
- assert([key isEqual:@"OneGoogleStorageCardUnlimitedTitle"]&&[table isEqual:@"OneGoogle"]);
- return ready?@"Unlimited storage":value;
+ assert(([key isEqual:@"OneGoogleStorageCardUnlimitedTitle"]||[key isEqual:@"OneGoogleStorageCardUnlimitedSubtitle"])&&[table isEqual:@"OneGoogle"]);
+ if(!ready)return value;
+ if(useSubtitleKey){
+  if([key isEqual:@"OneGoogleStorageCardUnlimitedTitle"])return value;
+  if([key isEqual:@"OneGoogleStorageCardUnlimitedSubtitle"])return @"Unlimited";
+ } else {
+  if([key isEqual:@"OneGoogleStorageCardUnlimitedTitle"])return @"Unlimited storage";
+ }
+ return value;
 }
 @end
 @interface OGLBundle : NSObject
@@ -57,16 +64,18 @@ static id Bundle(id object,SEL selector){return [BundleFixture new];}
 @end
 int main(int argc,const char **argv){@autoreleasepool{
  method_setImplementation(class_getClassMethod(NSBundle.class,@selector(mainBundle)),(IMP)Bundle);
- if(argc>1)method_setImplementation(class_getClassMethod(OGLBundle.class,@selector(oneGoogleResourceBundle)),imp_implementationWithBlock(^id(id object){return nil;}));
+ if(argc>1&&!strcmp(argv[1],"missing-resources"))method_setImplementation(class_getClassMethod(OGLBundle.class,@selector(oneGoogleResourceBundle)),imp_implementationWithBlock(^id(id object){return nil;}));
+ if(argc>1&&!strcmp(argv[1],"subtitle-only"))useSubtitleKey=YES;
  NSUserDefaults *defaults=NSUserDefaults.standardUserDefaults;[defaults removeObjectForKey:@"GSShowUnlimitedStorage"];
  GSInstallUnlimitedStorage();assert(GSUnlimitedStorageAvailable()&&GSUnlimitedStorageEnabled());
  OGLAccountMenuStorageCardData *data=[OGLAccountMenuStorageCardData new];data.storageState=0;data.usedStorage=6.55;data.totalStorage=15;data.cardActionCallback=^{actions++;};
  assert(![data respondsToSelector:NSSelectorFromString(@"title")]);assert(data.storageState==0);
  ready=YES;
- if(argc>1){assert(data.storageState==0);return 0;} // Missing resources never force an incomplete card.
+ if(argc>1&&!strcmp(argv[1],"missing-resources")){assert(data.storageState==0);return 0;} // Missing resources never force an incomplete card.
  assert(data.storageState==2);
  OGLAccountSelectorStorageCardItem *item=[OGLAccountSelectorStorageCardItem new];item.storageState=data.storageState;
- [[OGLAccountSelectorStorageCardCell new]updateWithItem:item];assert([[OGLAccountSelectorStorageCardCell titleTextWithStorageItem:item]isEqual:@"Unlimited storage"]);
+ NSString *expectedTitle=useSubtitleKey?@"Unlimited":@"Unlimited storage";
+ [[OGLAccountSelectorStorageCardCell new]updateWithItem:item];assert([[OGLAccountSelectorStorageCardCell titleTextWithStorageItem:item]isEqual:expectedTitle]);
  data.cardActionCallback();assert(actions==1&&data.usedStorage==6.55&&data.totalStorage==15);
  NSError *error=nil;NSData *archive=[NSKeyedArchiver archivedDataWithRootObject:data requiringSecureCoding:YES error:&error];assert(archive&&!error);
  OGLAccountMenuStorageCardData *restored=[NSKeyedUnarchiver unarchivedObjectOfClass:data.class fromData:archive error:&error];assert(restored&&!error);

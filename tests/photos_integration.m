@@ -55,6 +55,16 @@ static id IncompatiblePolicy(id object,SEL selector){assert(0 && "Incompatible d
 - (id)storagePolicy{assert(0 && "Incompatible diagnostic ABI must not be called");return nil;}
 @end
 #endif
+@interface PhotoWithIntStoragePolicy : PHSServerPhoto {
+ int _intStoragePolicy;
+}
+- (int)storagePolicy;
+- (void)setStoragePolicy:(int)storagePolicy;
+@end
+@implementation PhotoWithIntStoragePolicy
+- (int)storagePolicy{return _intStoragePolicy;}
+- (void)setStoragePolicy:(int)storagePolicy{_intStoragePolicy=storagePolicy;}
+@end
 static unsigned char NativePolicy(PHSServerPhoto *photo){
  Method m=class_getInstanceMethod(object_getClass(photo),NSSelectorFromString(@"storagePolicy"));
  if(!m||strcmp(method_getTypeEncoding(m),"C16@0:8"))return 0;
@@ -271,6 +281,16 @@ int main(void){@autoreleasepool{
   }
   optional.isPartialBackup=YES;assert([details getBackupStatusModelData]==details.original);
   optional.isPartialBackup=NO;optional.hasOriginalBytes=2;assert([details getBackupStatusModelData]==details.original);
+ }
+ PhotoWithIntStoragePolicy *intPhoto=[PhotoWithIntStoragePolicy new];
+ intPhoto.hasOriginalBytes=1;details.extendedPhoto.serverPhoto=intPhoto;
+ for(NSNumber *num in @[@500,@-1,@2]){
+  int intPolicy=num.intValue;
+  intPhoto.storagePolicy=intPolicy;id result=[details getBackupStatusModelData];
+  assert(result!=details.original);
+  assert([[result backupStatusSubtitle]isEqual:GSL(@"Original quality (original data available)")]);
+  NSString *key=[NSString stringWithFormat:@"serverStoragePolicy%d",intPolicy];
+  assert([GSPhotosIntegrationSnapshot()[key]unsignedIntegerValue]>=1);
  }
  details.extendedPhoto.serverPhoto=photo;
  assert([details.original.backupStatusSubtitle isEqual:SaverText]); // No mutation of native state.

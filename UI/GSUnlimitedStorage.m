@@ -51,13 +51,17 @@ static BOOL GSStorageItem(id item){
   GSStorageMethod(object_getClass(item),@"storageState","q16@0:8");
 }
 static NSString *GSUnlimitedTitle(void){
- // Use the stable native key, not a numeric table index that can move in
- // later releases. OGLBundle is Google's own resolver in both audited IPAs.
+ // Use stable native keys, not a numeric table index that can move in
+ // later releases. OGLBundle is Google's own resolver in audited IPAs.
  id bundle=((id(*)(id,SEL))objc_msgSend)(NSClassFromString(@"OGLBundle"),NSSelectorFromString(@"oneGoogleResourceBundle"));
- NSString *key=@"OneGoogleStorageCardUnlimitedTitle";
- id title=[bundle isKindOfClass:NSBundle.class]?[bundle localizedStringForKey:key value:key table:@"OneGoogle"]:nil;
- BOOL valid=[title isKindOfClass:NSString.class]&&[title length]&&![title isEqual:@"OneGoogleStorageCardUnlimitedTitle"];
- atomic_store(&GSStringsReady,valid);return valid?title:nil;
+ if(![bundle isKindOfClass:NSBundle.class]){atomic_store(&GSStringsReady,NO);return nil;}
+ for(NSString *key in @[@"OneGoogleStorageCardUnlimitedTitle",@"OneGoogleStorageCardUnlimitedSubtitle"]){
+  id title=[bundle localizedStringForKey:key value:key table:@"OneGoogle"];
+  if([title isKindOfClass:NSString.class]&&[title length]&&![title isEqual:key]){
+   atomic_store(&GSStringsReady,YES);return title;
+  }
+ }
+ atomic_store(&GSStringsReady,NO);return nil;
 }
 static NSInteger GSStorageModelState(id object,SEL selector){
  NSInteger original=GSOriginalModelState(object,selector);
