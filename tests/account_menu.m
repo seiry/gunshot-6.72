@@ -39,12 +39,17 @@ static id MainBundle(id object,SEL selector){static id bundle;if(!bundle)bundle=
 - (NSUInteger)accountMenuViewController:(id)controller numberOfCustomItemsInSectionAtIndex:(NSUInteger)section;
 - (id)accountMenuViewController:(id)controller customItemAtIndexPath:(id)path;
 - (void)accountMenuViewController:(id)controller performActionAtIndexPath:(id)path;
+- (BOOL)indexPath:(NSIndexPath *)path representsItem:(NSUInteger)item;
 @end
 @implementation PHSMyAccountMenuDataSource
 - (NSUInteger)numberOfCustomSectionsForAccountMenuViewController:(id)controller{return 1;}
 - (NSUInteger)accountMenuViewController:(id)controller numberOfCustomItemsInSectionAtIndex:(NSUInteger)section{return 3;}
 - (id)accountMenuViewController:(id)controller customItemAtIndexPath:(id)path{return [[OGLAccountMenuCustomItem alloc]initWithTitle:@"Native item" icon:nil itemType:1];}
 - (void)accountMenuViewController:(id)controller performActionAtIndexPath:(id)path{originalActions++;}
+- (BOOL)indexPath:(NSIndexPath *)path representsItem:(NSUInteger)item{
+ if(path.section>0)@throw [NSException exceptionWithName:NSRangeException reason:@"Simulated 6.72 out-of-bounds" userInfo:nil];
+ return path.section==0&&path.row==item;
+}
 @end
 // Real code walks this session's dependency chain to identify the tagged item.
 @interface GSFixtureNode : NSObject
@@ -78,6 +83,8 @@ int main(void){@autoreleasepool{
  [source accountMenuViewController:controller performActionAtIndexPath:other];assert(originalActions==1);
  // A delegate wrapper / detached controller can use the active-window fallback.
  [source accountMenuViewController:[NSObject new] performActionAtIndexPath:own];assert(opened==2&&lastHost==nil);
+ assert(![source indexPath:own representsItem:3]); // Out-of-bounds section must return NO without throwing.
+ assert([source indexPath:other representsItem:0]); // Native section check preserved.
  deps.customItemsDataSource=nil;[handler performCustomActionType:1 indexPath:own accountMenuViewController:controller];assert(dismissed==2&&opened==2);
  return 0;
 }}

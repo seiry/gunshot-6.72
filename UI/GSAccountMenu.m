@@ -17,10 +17,15 @@ static NSUInteger (*GSSections)(id,SEL,id);
 static NSUInteger (*GSItems)(id,SEL,id,NSUInteger);
 static id (*GSItem)(id,SEL,id,NSIndexPath *);
 static void (*GSAction)(id,SEL,id,NSIndexPath *);
+static BOOL (*GSRepresentsItem)(id,SEL,id,NSUInteger);
 static NSUInteger GSSection(id object,id controller){return GSSections(object,NSSelectorFromString(@"numberOfCustomSectionsForAccountMenuViewController:"),controller);}
 static NSUInteger GSMenuSections(id object,SEL selector,id controller){return GSSections(object,selector,controller)+1;}
 static NSUInteger GSMenuItems(id object,SEL selector,id controller,NSUInteger section){return section==GSSection(object,controller)?1:GSItems(object,selector,controller,section);}
-static BOOL GSOwnItem(id object,id controller,NSIndexPath *path){return path.section==GSSection(object,controller)&&path.row==0;}
+static BOOL GSOwnItem(id object,id controller,NSIndexPath *path){return [path isKindOfClass:NSIndexPath.class]&&path.section==GSSection(object,controller)&&path.row==0;}
+static BOOL GSMenuRepresentsItem(id object,SEL selector,NSIndexPath *path,NSUInteger item){
+ if([path isKindOfClass:NSIndexPath.class]&&path.section>=GSSection(object,nil))return NO;
+ return GSRepresentsItem?GSRepresentsItem(object,selector,path,item):NO;
+}
 static id GSMenuItem(id object,SEL selector,id controller,NSIndexPath *path){
  if(!GSOwnItem(object,controller,path))return GSItem(object,selector,controller,path);
  // itemType 1 is the native custom-action row, verified at 0x100c0ca10.
@@ -70,6 +75,9 @@ void GSInstallAccountMenu(void){
  GSItems=(void *)method_setImplementation(methods[1],(IMP)GSMenuItems);
  GSItem=(void *)method_setImplementation(methods[2],(IMP)GSMenuItem);
  GSAction=(void *)method_setImplementation(methods[3],(IMP)GSMenuAction);
+ Method rep=class_getInstanceMethod(cls,NSSelectorFromString(@"indexPath:representsItem:"));
+ if(rep&&!strcmp(method_getTypeEncoding(rep),"B32@0:8@16Q24"))
+  GSRepresentsItem=(void *)method_setImplementation(rep,(IMP)GSMenuRepresentsItem);
  // Optional pre-dismiss hook; the delegate remains a fallback for other routes.
  Class handler=NSClassFromString(@"OGLAccountMenuUIEventHandler");
  Method action=class_getInstanceMethod(handler,NSSelectorFromString(@"performCustomActionType:indexPath:accountMenuViewController:"));
