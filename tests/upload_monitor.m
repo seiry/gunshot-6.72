@@ -56,7 +56,12 @@ int main(void){@autoreleasepool{
  assert(GSNativeAccountMatches(a.accountID)&&!GSNativeAccountMatches(@"fixture-user-A"));
  revision=1;Poll();assert([GSUploadMonitorSnapshot()[@"uploadSummary"][@"completionRevision"]unsignedLongLongValue]==1);Await(^BOOL{return a.fetches==2;});assert(b.fetches==1);
  assert(!GSUploadQueueActive());
+ customProfiles=@{@"original":@{@"states":@{@"pending":@5}}};Poll();assert(!GSUploadQueueActive()); // Pending/paused alone does not keep awake.
  customProfiles=@{@"original":@{@"states":@{@"uploading":@1}}};Poll();assert(GSUploadQueueActive());
+ online=NO;Poll();assert(!GSUploadQueueActive()); // Offline releases keep-awake.
+ online=YES;Poll();assert(GSUploadQueueActive());
+ GSFixtureSelectAccount(nil);Poll();assert(!GSUploadQueueActive()); // Auth loss releases keep-awake.
+ GSFixtureSelectAccount(accountA);
  customProfiles=@{@"original":@{@"states":@{@"completed":@1}}};Poll();assert(!GSUploadQueueActive());
  customProfiles=nil;
  Poll();assert(a.fetches==2&&[GSUploadMonitorSnapshot()[@"syncSignals"]integerValue]==1);

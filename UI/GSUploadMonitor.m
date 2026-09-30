@@ -26,6 +26,8 @@ BOOL GSUploadHostForeground(void){return [GSUploadMonitorSnapshot()[@"foreground
 BOOL GSUploadQueueActive(void){
  NSDictionary *summary=GSUploadMonitorSnapshot()[@"uploadSummary"];
  if(![summary isKindOfClass:NSDictionary.class])return NO;
+ NSDictionary *conditions=summary[@"conditions"];
+ if([conditions isKindOfClass:NSDictionary.class]&&![conditions[@"online"]boolValue])return NO;
  NSDictionary *profiles=summary[@"profiles"];
  if([profiles isKindOfClass:NSDictionary.class]){
   for(id key in profiles){
@@ -33,7 +35,7 @@ BOOL GSUploadQueueActive(void){
    if(![mode isKindOfClass:NSDictionary.class])continue;
    NSDictionary *states=mode[@"states"];
    if(![states isKindOfClass:NSDictionary.class])continue;
-   for(NSString *state in @[@"pending",@"preparing",@"uploading",@"committing"]){
+   for(NSString *state in @[@"preparing",@"uploading",@"committing"]){
     NSNumber *count=states[state];
     if([count isKindOfClass:NSNumber.class]&&count.unsignedIntegerValue>0)return YES;
    }
@@ -46,7 +48,13 @@ static void GSPoll(void){
  NSCAssert(NSThread.isMainThread,@"Upload lifecycle must run on main");
  if(!GSForeground||GSInFlight)return;
  NSString *identifier=[GSNativeAccountSummary()[@"identifier"]copy];
- if(!identifier.length)return;
+ if(!identifier.length){
+  if(GSUploadMonitorSnapshot()[@"uploadSummary"]){
+   @synchronized(GSLock){[GSState removeObjectForKey:@"uploadSummary"];}
+   [NSNotificationCenter.defaultCenter postNotificationName:GSUploadMonitorStateDidChangeNotification object:nil];
+  }
+  return;
+ }
  NSUInteger epoch=GSEpoch;GSInFlight=YES;GSRecord(@{@"polling":@YES});
  dispatch_async(GSQueue,^{@autoreleasepool{
   NSDictionary *summary=GSRequest(@{@"op":@"upload_summary"},nil);
@@ -56,8 +64,13 @@ static void GSPoll(void){
    if(!GSForeground||epoch!=GSEpoch)return;
    BOOL identityMatched=GSNativeIdentityMatches(identifier);
    GSRecord(@{@"identityMatched":@(identityMatched)});
-   if(!identityMatched)return;
-   if(!summary)return;
+   if(!identityMatched||!summary){
+    if(GSUploadMonitorSnapshot()[@"uploadSummary"]){
+     @synchronized(GSLock){[GSState removeObjectForKey:@"uploadSummary"];}
+     [NSNotificationCenter.defaultCenter postNotificationName:GSUploadMonitorStateDidChangeNotification object:nil];
+    }
+    return;
+   }
    GSRecord(@{@"uploadSummary":summary});
    [NSNotificationCenter.defaultCenter postNotificationName:GSUploadMonitorStateDidChangeNotification object:nil];
    if(![summary[@"conditions"][@"online"]boolValue])return;
@@ -78,7 +91,10 @@ void GSSetUploadHostForeground(BOOL foreground){
   GSRecord(@{@"started":@YES});
   [NSTimer scheduledTimerWithTimeInterval:3 repeats:YES block:^(NSTimer *timer){GSPoll();}];
  });
- if(GSForeground!=foreground){GSEpoch++;GSLastIdentifier=nil;GSLastRevision=nil;}
+ if(GSForeground!=foreground){
+  GSEpoch++;GSLastIdentifier=nil;GSLastRevision=nil;
+  if(!foreground)@synchronized(GSLock){[GSState removeObjectForKey:@"uploadSummary"];}
+ }
  GSForeground=foreground;GSRecord(@{@"foreground":@(foreground)});
  [NSNotificationCenter.defaultCenter postNotificationName:GSUploadMonitorStateDidChangeNotification object:nil];
  GSPoll();
