@@ -38,6 +38,13 @@
   - 在 `UI/GSAccountMenu.m` 中 Hook `indexPath:representsItem:`（签名 `B32@0:8@16Q24`）；
   - 当 `path.section >= GSSection(object, nil)` 时，说明是 Tweak 自定义分区，直接返回 `NO`，彻底阻断越界访问，确保菜单正常加载。
 
+### 4. 上传时前台自动防息屏机制（`UI/GSBackupLifecycle.m` & `UI/GSUploadMonitor.m`）
+- **实现原理**：
+  - `GSUploadMonitor.m` 实现 `GSUploadQueueActive()`，检查当前是否有 `pending`、`preparing`、`uploading`、`committing` 状态的任务，并在轮询或前后台切换时发送 `GSUploadMonitorStateDidChangeNotification` 通知；
+  - `GSBackupLifecycle.m` 接收状态变化通知及原生前后台生命周期通知；
+  - 当前台有正在上传的队列或正在准备批量相册导入（`GSBatchImportSnapshot()[@"active"]`）时，自动在主线程设置 `UIApplication.sharedApplication.idleTimerDisabled = YES`，防止系统自动锁定熄屏中断传输；
+  - 任务全部上传完成（队列空闲）、暂停或 App 退至后台时，自动恢复为 `NO`，保证系统正常休眠与节电。
+
 ---
 
 ## 三、当前代码改动清单
