@@ -4,14 +4,21 @@
 #import "GSNativeRouting.h"
 #import "GSPhotosIntegration.h"
 
+static BOOL GSGunshotAcquiredIdleTimer;
 static void GSUpdateIdleTimer(void){
  NSCAssert(NSThread.isMainThread,@"Idle timer must run on main");
  BOOL foreground=GSUploadHostForeground();
  BOOL queueActive=GSUploadQueueActive();
  BOOL batchActive=[GSBatchImportSnapshot()[@"active"]boolValue];
- BOOL keepAwake=foreground&&(queueActive||batchActive);
- if(UIApplication.sharedApplication.idleTimerDisabled!=keepAwake){
-  UIApplication.sharedApplication.idleTimerDisabled=keepAwake;
+ BOOL shouldKeepAwake=foreground&&(queueActive||batchActive);
+ if(shouldKeepAwake){
+  if(!UIApplication.sharedApplication.idleTimerDisabled){
+   UIApplication.sharedApplication.idleTimerDisabled=YES;
+  }
+  GSGunshotAcquiredIdleTimer=YES;
+ }else if(GSGunshotAcquiredIdleTimer){
+  UIApplication.sharedApplication.idleTimerDisabled=NO;
+  GSGunshotAcquiredIdleTimer=NO;
  }
 }
 static void GSSampleHost(void){
