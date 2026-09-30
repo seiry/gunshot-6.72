@@ -60,7 +60,7 @@ int main(void){@autoreleasepool{
  customProfiles=@{@"original":@{@"states":@{@"uploading":@1}}};Poll();assert(GSUploadQueueActive());
  online=NO;Poll();assert(!GSUploadQueueActive()); // Offline releases keep-awake.
  online=YES;Poll();assert(GSUploadQueueActive());
- GSFixtureSelectAccount(nil);Poll();assert(!GSUploadQueueActive()); // Auth loss releases keep-awake.
+ unsigned long reqBefore=requests;GSFixtureSelectAccount(nil);GSSetUploadHostForeground(YES);assert(!GSUploadQueueActive()&&requests==reqBefore); // Auth loss releases keep-awake without request.
  GSFixtureSelectAccount(accountA);
  customProfiles=@{@"original":@{@"states":@{@"completed":@1}}};Poll();assert(!GSUploadQueueActive());
  customProfiles=nil;
