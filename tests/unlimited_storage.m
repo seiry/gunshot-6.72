@@ -15,8 +15,10 @@ static id MainBundle(id object,SEL selector){static id bundle;if(!bundle)bundle=
 @interface GSNativeStringsBundle : NSBundle @end
 @implementation GSNativeStringsBundle
 - (NSString *)localizedStringForKey:(NSString *)key value:(NSString *)value table:(NSString *)table{
- assert([key isEqual:@"OneGoogleStorageCardUnlimitedTitle"]&&[table isEqual:@"OneGoogle"]);
- return ResourcesReady?@"Unlimited storage":value;
+ assert(([key isEqual:@"OneGoogleStorageCardUnlimitedTitle"]||[key isEqual:@"OneGoogleStorageCardUnlimitedSubtitle"])&&[table isEqual:@"OneGoogle"]);
+ if([key isEqual:@"OneGoogleStorageCardUnlimitedTitle"])return ResourcesReady?@"Unlimited storage":value;
+ if([key isEqual:@"OneGoogleStorageCardUnlimitedSubtitle"])return ResourcesReady?@"Unlimited":value;
+ return value;
 }
 @end
 @interface OGLBundle : NSObject
