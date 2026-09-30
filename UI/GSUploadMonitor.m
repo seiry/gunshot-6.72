@@ -2,6 +2,7 @@
 #import "GSNativeAccount.h"
 #import "GSPhotosIntegration.h"
 #import "../Shared/IPCProtocol.h"
+NSString *const GSUploadMonitorStateDidChangeNotification=@"GSUploadMonitorStateDidChangeNotification";
 
 // The host observes the same durable queue through either IPC or the embedded
 // adapter. No panel, native backup request or active routing toggle is required.
@@ -22,6 +23,24 @@ static void GSInitialize(void){
 static void GSRecord(NSDictionary *values){@synchronized(GSLock){[GSState addEntriesFromDictionary:values];}}
 NSDictionary *GSUploadMonitorSnapshot(void){GSInitialize();@synchronized(GSLock){return [GSState copy];}}
 BOOL GSUploadHostForeground(void){return [GSUploadMonitorSnapshot()[@"foreground"]boolValue];}
+BOOL GSUploadQueueActive(void){
+ NSDictionary *summary=GSUploadMonitorSnapshot()[@"uploadSummary"];
+ if(![summary isKindOfClass:NSDictionary.class])return NO;
+ NSDictionary *profiles=summary[@"profiles"];
+ if([profiles isKindOfClass:NSDictionary.class]){
+  for(id key in profiles){
+   NSDictionary *mode=profiles[key];
+   if(![mode isKindOfClass:NSDictionary.class])continue;
+   NSDictionary *states=mode[@"states"];
+   if(![states isKindOfClass:NSDictionary.class])continue;
+   for(NSString *state in @[@"pending",@"preparing",@"uploading",@"committing"]){
+    NSNumber *count=states[state];
+    if([count isKindOfClass:NSNumber.class]&&count.unsignedIntegerValue>0)return YES;
+   }
+  }
+ }
+ return NO;
+}
 
 static void GSPoll(void){
  NSCAssert(NSThread.isMainThread,@"Upload lifecycle must run on main");
@@ -40,6 +59,7 @@ static void GSPoll(void){
    if(!identityMatched)return;
    if(!summary)return;
    GSRecord(@{@"uploadSummary":summary});
+   [NSNotificationCenter.defaultCenter postNotificationName:GSUploadMonitorStateDidChangeNotification object:nil];
    if(![summary[@"conditions"][@"online"]boolValue])return;
    NSNumber *revision=summary[@"completionRevision"];
    if(![revision isKindOfClass:NSNumber.class]||revision.unsignedLongLongValue==0)return;
@@ -59,5 +79,7 @@ void GSSetUploadHostForeground(BOOL foreground){
   [NSTimer scheduledTimerWithTimeInterval:3 repeats:YES block:^(NSTimer *timer){GSPoll();}];
  });
  if(GSForeground!=foreground){GSEpoch++;GSLastIdentifier=nil;GSLastRevision=nil;}
- GSForeground=foreground;GSRecord(@{@"foreground":@(foreground)});GSPoll();
+ GSForeground=foreground;GSRecord(@{@"foreground":@(foreground)});
+ [NSNotificationCenter.defaultCenter postNotificationName:GSUploadMonitorStateDidChangeNotification object:nil];
+ GSPoll();
 }

@@ -10,6 +10,7 @@
 static atomic_bool online=YES,reachable=YES,holdReply=NO,waiting=NO;
 static atomic_ulong revision,requests;
 static dispatch_semaphore_t releaseReply;
+static NSDictionary *customProfiles;
 BOOL GSIsGooglePhotos(void){return YES;}
 BOOL GSNativeRoutingEnabled(void){return NO;} // Standalone GoToHP uploads also sync.
 @interface FixtureBundle : NSBundle @end
@@ -27,7 +28,8 @@ static id Bundle(id object,SEL selector){return [FixtureBundle new];}
 @end
 NSDictionary *GSRequest(NSDictionary *request,NSError **error){
  assert(!NSThread.isMainThread);assert([request[@"op"]isEqual:@"upload_summary"]);requests++;
- NSDictionary *summary=@{@"completionRevision":@(atomic_load(&revision)),@"conditions":@{@"online":@(atomic_load(&online))}};
+ NSMutableDictionary *summary=[@{@"completionRevision":@(atomic_load(&revision)),@"conditions":@{@"online":@(atomic_load(&online))}} mutableCopy];
+ if(customProfiles)summary[@"profiles"]=customProfiles;
  if(atomic_load(&holdReply)){waiting=YES;dispatch_semaphore_wait(releaseReply,dispatch_time(DISPATCH_TIME_NOW,5*NSEC_PER_SEC));waiting=NO;}
  return atomic_load(&reachable)?summary:nil;
 }
@@ -53,6 +55,10 @@ int main(void){@autoreleasepool{
  assert([GSNativeAccountSummary()[@"identifier"]isEqual:@"fixture-user-A"]);
  assert(GSNativeAccountMatches(a.accountID)&&!GSNativeAccountMatches(@"fixture-user-A"));
  revision=1;Poll();assert([GSUploadMonitorSnapshot()[@"uploadSummary"][@"completionRevision"]unsignedLongLongValue]==1);Await(^BOOL{return a.fetches==2;});assert(b.fetches==1);
+ assert(!GSUploadQueueActive());
+ customProfiles=@{@"original":@{@"states":@{@"uploading":@1}}};Poll();assert(GSUploadQueueActive());
+ customProfiles=@{@"original":@{@"states":@{@"completed":@1}}};Poll();assert(!GSUploadQueueActive());
+ customProfiles=nil;
  Poll();assert(a.fetches==2&&[GSUploadMonitorSnapshot()[@"syncSignals"]integerValue]==1);
  online=NO;revision=2;Poll();assert([GSUploadMonitorSnapshot()[@"syncSignals"]integerValue]==1);
  online=YES;Poll();Await(^BOOL{return a.fetches==3;});
