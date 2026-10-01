@@ -10,3 +10,5 @@ FOUNDATION_EXPORT void GSSetUploadHostForeground(BOOL foreground);
 FOUNDATION_EXPORT BOOL GSUploadHostForeground(void);
 FOUNDATION_EXPORT BOOL GSUploadQueueActive(void);
 FOUNDATION_EXPORT NSDictionary *GSUploadMonitorSnapshot(void);
+FOUNDATION_EXPORT BOOL GSBackupDimmingEnabled(void);
+FOUNDATION_EXPORT void GSSetBackupDimming(BOOL enabled);

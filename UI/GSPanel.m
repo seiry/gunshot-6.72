@@ -168,7 +168,7 @@
  if(GSIsGooglePhotos())accountRows=@[@13];
  [groups addObject:@{@"title":GSL(@"Account"),@"rows":accountRows}];
  [groups addObject:@{@"title":GSL(@"Upload settings"),@"rows":@[@0,@1,@2,@3,@4,@5],@"footer":[GSL(@"Pixel 1 requests original quality without storage usage (Pixel XL). Quality is fixed when queued. Verify storage usage and original data in Google Photos.\n") stringByAppendingString:GS_QUEUED_HELP]}];
- if(GSIsGooglePhotos())[groups addObject:@{@"title":GSL(@"Google Photos integration"),@"rows":@[@10],@"footer":GS_BACKUP_HELP}];
+if(GSIsGooglePhotos())[groups addObject:@{@"title":GSL(@"Google Photos integration"),@"rows":@[@10,@21],@"footer":GS_BACKUP_HELP}];
  [groups addObject:@{@"title":GSL(@"Queue management"),@"rows":@[@8,@20,@9]}];
  if(GSIsGooglePhotos())[groups addObject:@{@"title":GSL(@"Diagnostics"),@"rows":@[@11,@12],@"footer":GSL(@"Troubleshoot compatibility. Tokens and media are never recorded.")}];
  [groups addObject:@{@"title":GSL(@"Appearance"),@"rows":GSIsGooglePhotos()?@[@15,@16,@19]:@[@15],@"footer":GSIsGooglePhotos()?GSL(@"Reopen the profile menu to apply changes. Unlimited storage affects only the display; account limits and upload quality stay unchanged."):GSL(@"Reopen the profile menu to update its language.")}];
@@ -204,11 +204,13 @@
  if(control==11)return GSUploadDiagnosticsEnabled();
  if(control==16)return GSUnlimitedStorageEnabled();
  if(control==19)return GSPhotosGlassEnabled();
+ if(control==21)return GSBackupDimmingEnabled();
  return [self.options[@[@"wifiOnly",@"chargingOnly",@"paused"][control-3]]boolValue];
 }
 - (void)controlSwitchChanged:(UISwitch *)toggle{
  NSInteger control=toggle.tag;BOOL desired=toggle.on;
  [toggle setOn:[self switchValueForControl:control] animated:YES];
+ if(control==21){GSSetBackupDimming(desired);[self reloadTablePreservingPosition];return;}
  if(control==19){GSSetPhotosGlass(desired);[self reloadTablePreservingPosition];return;}
  if(control==16){GSSetUnlimitedStorage(desired);[self reloadTablePreservingPosition];return;}
  if(self.busy)return;
@@ -234,8 +236,8 @@
  }
  NSInteger control=[self controlAtPath:path];
  if(control>=0){
-  NSArray *titles=@[GSL(@"Quality"),GSL(@"Concurrent uploads"),GSL(@"Retry limit"),GSL(@"Wi-Fi only"),GSL(@"Charging only"),GSL(@"Pause uploads"),GSL(@"Destination account"),GSL(@"Remove account from GoToHP"),GSL(@"Retry failed uploads"),GSL(@"Clear completed history"),GS_BACKUP_TITLE,GSL(@"Upload diagnostics"),GSL(@"Export diagnostics"),GSL(@"Connect or refresh account"),GSL(@"Choose photos and videos"),GSL(@"Language"),GSL(@"Show unlimited storage"),GSL(@"Choose album"),GSL(@"Stop preparing"),@"Google Photos · Liquid Glass",GSL(@"Clear failed uploads")];
-  NSArray *icons=@[@"photo",@"square.stack.3d.up",@"arrow.clockwise",@"wifi",@"battery.100.bolt",@"pause.circle",@"person.crop.circle.badge.checkmark",@"person.crop.circle.badge.minus",@"arrow.clockwise.circle",@"checkmark.circle",@"arrow.triangle.branch",@"waveform.path.ecg",@"square.and.arrow.up",@"person.crop.circle.badge.checkmark",@"plus.circle",@"globe",@"cloud",@"rectangle.stack",@"stop.circle",@"rectangle.bottomhalf.inset.filled",@"xmark.circle"];
+  NSArray *titles=@[GSL(@"Quality"),GSL(@"Concurrent uploads"),GSL(@"Retry limit"),GSL(@"Wi-Fi only"),GSL(@"Charging only"),GSL(@"Pause uploads"),GSL(@"Destination account"),GSL(@"Remove account from GoToHP"),GSL(@"Retry failed uploads"),GSL(@"Clear completed history"),GS_BACKUP_TITLE,GSL(@"Upload diagnostics"),GSL(@"Export diagnostics"),GSL(@"Connect or refresh account"),GSL(@"Choose photos and videos"),GSL(@"Language"),GSL(@"Show unlimited storage"),GSL(@"Choose album"),GSL(@"Stop preparing"),@"Google Photos · Liquid Glass",GSL(@"Clear failed uploads"),GSL(@"Auto-dim screen")];
+  NSArray *icons=@[@"photo",@"square.stack.3d.up",@"arrow.clockwise",@"wifi",@"battery.100.bolt",@"pause.circle",@"person.crop.circle.badge.checkmark",@"person.crop.circle.badge.minus",@"arrow.clockwise.circle",@"checkmark.circle",@"arrow.triangle.branch",@"waveform.path.ecg",@"square.and.arrow.up",@"person.crop.circle.badge.checkmark",@"plus.circle",@"globe",@"cloud",@"rectangle.stack",@"stop.circle",@"rectangle.bottomhalf.inset.filled",@"xmark.circle",@"sun.min.fill"];
   cell.textLabel.text=titles[control];cell.imageView.image=[UIImage systemImageNamed:icons[control]];
   cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
   if(control==17)cell.detailTextLabel.text=GSL(@"Upload an entire album; browse folders to choose an album.");
@@ -251,10 +253,10 @@
   if(control==6)cell.detailTextLabel.text=self.accounts[@"selected"];
   if(control==13)cell.detailTextLabel.text=GSL(@"Check the connection for the signed-in account");
   if(control==7)cell.textLabel.textColor=UIColor.systemRedColor;
-  if((control>=3&&control<=5)||control==10||control==11||control==16||control==19){
+  if((control>=3&&control<=5)||control==10||control==11||control==16||control==19||control==21){
    UISwitch *toggle=[UISwitch new];toggle.tag=control;toggle.on=[self switchValueForControl:control];
    toggle.accessibilityLabel=titles[control];toggle.onTintColor=tableView.tintColor;
-   toggle.enabled=control==19?GSPhotosGlassAvailable():control==16?GSUnlimitedStorageAvailable():!self.busy&&(control==10?GSNativeRoutingAvailable():control==11?GSUploadDiagnosticsAvailable():self.options!=nil);
+   toggle.enabled=control==21?!self.busy:(control==19?GSPhotosGlassAvailable():control==16?GSUnlimitedStorageAvailable():!self.busy&&(control==10?GSNativeRoutingAvailable():control==11?GSUploadDiagnosticsAvailable():self.options!=nil));
    [toggle addTarget:self action:@selector(controlSwitchChanged:) forControlEvents:UIControlEventValueChanged];
    cell.accessoryView=toggle;cell.selectionStyle=UITableViewCellSelectionStyleNone;
   }
@@ -266,6 +268,7 @@
   }
   if(control==16&&!GSUnlimitedStorageAvailable())cell.detailTextLabel.text=GSL(@"Unavailable in this version");
   if(control==10&&!GSNativeRoutingAvailable())cell.detailTextLabel.text=GSL(@"Unavailable in this version");
+  if(control==21)cell.detailTextLabel.text=GSL(@"Reduce brightness and turn screen black after 30 seconds of inactivity. Tap anywhere to wake.");
   return cell;
  }
  if(!self.jobs.count){cell.textLabel.text=GSL(@"No uploads yet");cell.detailTextLabel.text=GSL(@"Use Choose photos and videos to add items.");cell.imageView.image=[UIImage systemImageNamed:@"tray"];cell.selectionStyle=UITableViewCellSelectionStyleNone;return cell;}
@@ -406,6 +409,7 @@
   if(control==13){[self addAccount];return;}
   if(control==10){[self toggleNativeRouting];return;}
   if(control==11){GSSetUploadDiagnostics(!GSUploadDiagnosticsEnabled());[self reloadTablePreservingPosition];return;}
+  if(control==21){GSSetBackupDimming(!GSBackupDimmingEnabled());[self reloadTablePreservingPosition];return;}
   if(control<3){[self chooseValueForControl:control];return;}
   if(control<6)return; // Use the visible switch; no hidden value cycling.
   if(control==6||control==7)[self accountAction:control==7];

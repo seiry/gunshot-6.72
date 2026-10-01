@@ -134,5 +134,8 @@
   "Open folder": "打开文件夹",
   "Upload all accessible photos and videos": "上传所有可读取的媒体",
   "Add %lu items to the queue? Originals are prepared one at a time. Keep the app open.": "是否要添加 %lu 项内容到队列？原图的准备工作将逐一进行，请保持 App 开启",
-  "No accessible photos in this album. Check photo permissions.": "此相册中无可访问的图片，请检查访问权限"
+  "No accessible photos in this album. Check photo permissions.": "此相册中无可访问的图片，请检查访问权限",
+  "Auto-dim screen": "备份时自动暗屏",
+  "Reduce brightness and turn screen black after 30 seconds of inactivity. Tap anywhere to wake.": "无操作 30 秒后自动调至最低亮度并覆盖黑色省电遮罩，轻触屏幕任意位置即可恢复。",
+  "Backing up · Tap anywhere to wake": "备份中 · 轻触屏幕唤醒"
 }

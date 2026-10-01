@@ -134,5 +134,8 @@
   "Open folder": "フォルダを開く",
   "Upload all accessible photos and videos": "アクセス可能な写真・動画をまとめてアップロード",
   "Add %lu items to the queue? Originals are prepared one at a time. Keep the app open.": "%lu件をキューに追加しますか？原本を1件ずつ準備します。アプリを開いたままにしてください。",
-  "No accessible photos in this album. Check photo permissions.": "このアルバムにアクセス可能な写真がありません。写真のアクセス権を確認してください。"
+  "No accessible photos in this album. Check photo permissions.": "このアルバムにアクセス可能な写真がありません。写真のアクセス権を確認してください。",
+  "Auto-dim screen": "バックアップ中の画面消灯",
+  "Reduce brightness and turn screen black after 30 seconds of inactivity. Tap anywhere to wake.": "30秒間操作がないと輝度を最小化し省電力黒画面を表示します。タップで復帰します。",
+  "Backing up · Tap anywhere to wake": "バックアップ中 · タップして復帰"
 }

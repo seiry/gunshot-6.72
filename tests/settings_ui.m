@@ -249,6 +249,15 @@ static void CheckStationaryPolling(GSPanel *panel,UIWindow *window,void(^next)(v
   toggle.on=YES;[toggle sendActionsForControlEvents:UIControlEventValueChanged];
   if(!UnlimitedStorage){Finish(NO,@"storage opt-in failed");return;}
   [panel setValue:@NO forKey:@"busy"];[panel.tableView reloadData];
+  NSIndexPath *dimPath=[NSIndexPath indexPathForRow:1 inSection:3];
+  UITableViewCell *dimCell=[panel tableView:panel.tableView cellForRowAtIndexPath:dimPath];
+  UISwitch *dimToggle=(UISwitch *)dimCell.accessoryView;
+  if(![dimCell.textLabel.text isEqual:@"Auto-dim screen"]||![dimToggle isKindOfClass:UISwitch.class]||!dimToggle.on||!dimToggle.enabled){Finish(NO,@"auto-dim toggle default or availability failed");return;}
+  if(![dimCell.detailTextLabel.text containsString:@"30 seconds"]){Finish(NO,@"auto-dim detail label missing");return;}
+  dimToggle.on=NO;[dimToggle sendActionsForControlEvents:UIControlEventValueChanged];
+  if(GSBackupDimmingEnabled()){Finish(NO,@"auto-dim opt-out failed");return;}
+  dimToggle.on=YES;[dimToggle sendActionsForControlEvents:UIControlEventValueChanged];
+  if(!GSBackupDimmingEnabled()){Finish(NO,@"auto-dim opt-in failed");return;}
   Capture(self.window,@"settings-english.png");
   GSSetLanguage(@"ja");[panel viewWillAppear:NO];
   [panel.tableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:7] atScrollPosition:UITableViewScrollPositionBottom animated:NO];

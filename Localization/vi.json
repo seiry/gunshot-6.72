@@ -134,5 +134,8 @@
   "Open folder": "Mở thư mục",
   "Upload all accessible photos and videos": "Tải lên tất cả ảnh và video có thể truy cập",
   "Add %lu items to the queue? Originals are prepared one at a time. Keep the app open.": "Thêm %lu mục vào hàng đợi? Các bản gốc được chuẩn bị lần lượt. Hãy giữ ứng dụng mở.",
-  "No accessible photos in this album. Check photo permissions.": "Không có ảnh nào có thể truy cập trong album này. Kiểm tra quyền đối với ảnh."
+  "No accessible photos in this album. Check photo permissions.": "Không có ảnh nào có thể truy cập trong album này. Kiểm tra quyền đối với ảnh.",
+  "Auto-dim screen": "Tự động làm tối màn hình khi sao lưu",
+  "Reduce brightness and turn screen black after 30 seconds of inactivity. Tap anywhere to wake.": "Giảm độ sáng và hiển thị màn hình đen sau 30 giây không hoạt động. Chạm vào bất kỳ đâu để đánh thức.",
+  "Backing up · Tap anywhere to wake": "Đang sao lưu · Chạm vào bất kỳ đâu để đánh thức"
 }
