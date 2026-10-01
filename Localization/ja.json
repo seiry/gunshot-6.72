@@ -52,6 +52,7 @@
   "Destination account": "送信先アカウント",
   "Remove account from GoToHP": "GoToHP からアカウントを削除",
   "Retry failed uploads": "失敗した項目を再試行",
+  "Clear failed uploads": "失敗した項目を消去",
   "Clear completed history": "完了した履歴を消去",
   "Upload diagnostics": "アップロードの診断",
   "Export diagnostics": "診断データを書き出す",

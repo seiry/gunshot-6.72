@@ -11,7 +11,7 @@ func roleAllowed(role, op string) bool {
 	if role == "daemon" {
 		return op == "conditions"
 	}
-	common := op == "upload_summary" || op == "job" || op == "ping" || op == "list" || op == "accounts" || op == "options" || op == "retry" || op == "cancel" || op == "clear_completed" || op == "retry_failed"
+	common := op == "upload_summary" || op == "job" || op == "ping" || op == "list" || op == "accounts" || op == "options" || op == "retry" || op == "cancel" || op == "clear_completed" || op == "retry_failed" || op == "clear_failed"
 	if role == "settings" || role == "googlephotos" {
 		return common || (role == "googlephotos" && (op == "begin" || op == "append" || op == "seal" || op == "account_native" || op == "native_bearer" || op == "native_bearer_clear")) || op == "configure" || op == "account_add" || op == "account_remove" || op == "account_select"
 	}
@@ -105,6 +105,22 @@ func (e *Engine) handle(r Request, role string) (any, error) {
 		for _, j := range e.state.Jobs {
 			if j.State == "completed" || j.State == "cancelled" {
 				delete(e.jobsByID, j.ID)
+			} else {
+				next = append(next, j)
+			}
+		}
+		if len(next) == len(e.state.Jobs) {
+			return nil, nil
+		}
+		clear(e.state.Jobs[len(next):]) // Release removed jobs held by the backing array.
+		e.state.Jobs = next
+		return nil, e.save()
+	case "clear_failed":
+		next := e.state.Jobs[:0]
+		for _, j := range e.state.Jobs {
+			if j.State == "failed" {
+				delete(e.jobsByID, j.ID)
+				_ = os.RemoveAll(e.jobDir(j.ID))
 			} else {
 				next = append(next, j)
 			}

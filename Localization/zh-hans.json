@@ -52,6 +52,7 @@
   "Destination account": "目标账户",
   "Remove account from GoToHP": "从 GoToHP 中移除账户",
   "Retry failed uploads": "重试失败项",
+  "Clear failed uploads": "清除失败项",
   "Clear completed history": "清除已完成记录",
   "Upload diagnostics": "上传诊断信息",
   "Export diagnostics": "导出诊断信息",

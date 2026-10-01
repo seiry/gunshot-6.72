@@ -61,7 +61,7 @@ func TestJobIndexSurvivesRestartAndHistoryCleanup(t *testing.T) {
 }
 
 func TestNoOpQueueCommandsDoNotRewriteState(t *testing.T) {
-	for _, op := range []string{"configure", "clear_completed", "retry_failed"} {
+	for _, op := range []string{"configure", "clear_completed", "retry_failed", "clear_failed"} {
 		t.Run(op, func(t *testing.T) {
 			e := newEngine(t, nil)
 			importTest(t, e, "original")
@@ -86,6 +86,64 @@ func TestNoOpQueueCommandsDoNotRewriteState(t *testing.T) {
 		})
 	}
 }
+func TestClearFailedRemovesFailedJobsAndMedia(t *testing.T) {
+	e := newEngine(t, nil)
+	importNamed := func(name, data string) *Job {
+		t.Helper()
+		r := Request{Account: "a@example.com", Quality: "original", Resources: []Resource{{Name: name, Size: int64(len(data))}}}
+		v, err := e.begin(r, "photos")
+		if err != nil {
+			t.Fatal(err)
+		}
+		j := e.find(v.(map[string]any)["id"].(string))
+		if err = e.appendChunk(j, Request{Index: 0, Offset: 0, Data: []byte(data)}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = e.seal(j); err != nil {
+			t.Fatal(err)
+		}
+		return j
+	}
+	pending := importNamed("pending.jpg", "1")
+	failed := importNamed("failed.jpg", "2")
+	completed := importNamed("completed.jpg", "3")
+	failed.State = "failed"
+	completed.State = "completed"
+	if err := e.save(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(e.jobDir(failed.ID)); err != nil {
+		t.Fatalf("failed job staging directory missing before cleanup: %v", err)
+	}
+
+	backing := e.state.Jobs
+	if _, err := e.handle(Request{Op: "clear_failed"}, "settings"); err != nil {
+		t.Fatal(err)
+	}
+	if len(e.jobsByID) != 2 || len(e.state.Jobs) != 2 ||
+		e.find(failed.ID) != nil || e.state.Jobs[0].ID != pending.ID || e.state.Jobs[1].ID != completed.ID {
+		t.Fatal("clear_failed did not remove only failed jobs")
+	}
+
+	if _, err := os.Stat(e.jobDir(failed.ID)); !os.IsNotExist(err) {
+		t.Fatalf("failed job staging directory was not deleted: %v", err)
+	}
+
+	if backing[2] != nil {
+		t.Fatal("removed failed job retained by the queue backing array")
+	}
+
+	if _, err := e.handle(Request{Op: "job", ID: failed.ID}, "photos"); err == nil {
+		t.Fatal("removed failed job remains accessible through the protocol")
+	}
+
+	reopened, err := Open(e.root, nil)
+	if err != nil || len(reopened.state.Jobs) != 2 || reopened.find(failed.ID) != nil {
+		t.Fatalf("failed cleanup did not persist after restart: %v", err)
+	}
+}
+
 
 func TestChangedOptionsAndRetryArePersisted(t *testing.T) {
 	e := newEngine(t, nil)

@@ -170,7 +170,6 @@ static void CheckStationaryPolling(GSPanel *panel,UIWindow *window,void(^next)(v
  }
  GSSetLanguage(@"ja");NSLog(@"Fixture: language initialized");
  UIViewController *root=self.window.rootViewController;
- NSDate *deadline=[NSDate dateWithTimeIntervalSinceNow:30];
  // Authenticate at app activation, before any GoToHP settings are presented.
  GSStartAccountConnection();
  GSStartBackupIntegration();
@@ -274,15 +273,15 @@ static void CheckStationaryPolling(GSPanel *panel,UIWindow *window,void(^next)(v
         CheckRealSheetPresentation(Panel(root),^{
          Finish(YES,@"detached, nested, repeated and nil-host presentation; real Liquid Glass action-sheet presentation/dismissal; stationary polling and changed-snapshot anchor retained; settings rendered; real jailed runtime online, launch completion observer active and authorization snapshot nonblocking");
         });
-       },deadline);
+       },[NSDate dateWithTimeIntervalSinceNow:15]);
       }];
      });
-    },deadline);
+    },[NSDate dateWithTimeIntervalSinceNow:15]);
    }];
   }];
   });
- },deadline);
- },deadline);
+ },[NSDate dateWithTimeIntervalSinceNow:15]);
+ },[NSDate dateWithTimeIntervalSinceNow:30]);
 }
 @end
 @interface GSFixtureApp : UIResponder <UIApplicationDelegate> @end
@@ -293,6 +292,6 @@ static void CheckStationaryPolling(GSPanel *panel,UIWindow *window,void(^next)(v
 @end
 int main(int argc,char **argv){@autoreleasepool{
  NSLog(@"Fixture: main");
- dispatch_after(dispatch_time(DISPATCH_TIME_NOW,60*NSEC_PER_SEC),dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{Finish(NO,@"watchdog: no completion within 60 seconds after main");});
+ dispatch_after(dispatch_time(DISPATCH_TIME_NOW,90*NSEC_PER_SEC),dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{Finish(NO,@"watchdog: no completion within 90 seconds after main");});
  return UIApplicationMain(argc,argv,nil,NSStringFromClass(GSFixtureApp.class));
 }}

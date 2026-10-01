@@ -52,6 +52,7 @@
   "Destination account": "Tài khoản đích",
   "Remove account from GoToHP": "Xóa tài khoản khỏi GoToHP",
   "Retry failed uploads": "Thử lại các mục tải lên không thành công",
+  "Clear failed uploads": "Xóa các mục tải lên không thành công",
   "Clear completed history": "Xóa lịch sử đã hoàn thành",
   "Upload diagnostics": "Chẩn đoán tải lên",
   "Export diagnostics": "Xuất chẩn đoán",
