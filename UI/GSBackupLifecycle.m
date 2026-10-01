@@ -24,6 +24,7 @@ static void GSWakeScreen(BOOL animated);
 static void GSResetIdleDimTimer(void);
 static void GSDimScreen(void);
 static void GSBackupLifecycleDidReceiveTouch(void);
+static void GSUpdateIdleTimer(void);
 
 @interface GSDimOverlayViewClass : UIView
 @end
@@ -144,18 +145,14 @@ static void GSDimScreen(void) {
 
  UIWindow *targetWindow = nil;
  for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-  if (scene.activationState != UISceneActivationStateForegroundActive || ![scene isKindOfClass:UIWindowScene.class]) continue;
-  for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+  if (![scene isKindOfClass:UIWindowScene.class]) continue;
+  UIWindowScene *windowScene = (UIWindowScene *)scene;
+  for (UIWindow *w in windowScene.windows) {
    if (w.isKeyWindow) { targetWindow = w; break; }
+   if (!targetWindow) targetWindow = w;
   }
-  if (targetWindow) break;
+  if (targetWindow && targetWindow.isKeyWindow) break;
  }
- if (!targetWindow) {
-  for (UIWindow *w in UIApplication.sharedApplication.windows) {
-   if (w.isKeyWindow) { targetWindow = w; break; }
-  }
- }
- if (!targetWindow) targetWindow = UIApplication.sharedApplication.windows.firstObject;
  if (!targetWindow) return;
 
  if (!GSDimOverlayView) {
