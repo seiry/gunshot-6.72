@@ -55,7 +55,13 @@ subprocess.run(['xcrun','simctl','boot',udid],check=True,timeout=90)
 subprocess.run(['xcrun','simctl','bootstatus',udid,'-b'],check=True,timeout=180)
 app='.build/settings-smoke/GoToHPSettingsFixture.app';bundle='dev.tqmane.gunshot.settingsfixture'
 print('Installing settings fixture',flush=True)
-subprocess.run(['xcrun','simctl','install',udid,app],check=True,timeout=120)
+for attempt in range(2):
+ try:
+  subprocess.run(['xcrun','simctl','install',udid,app],check=True,timeout=180)
+  break
+ except Exception as error:
+  if attempt==1:raise
+  print(f'Install attempt failed ({error}); retrying...',flush=True)
 # Keep UIDesignRequiresCompatibility=YES in the fixture, but opt this launch
 # back into the iOS 26 design before UIApplicationMain. This models the same
 # early user-default override used by the injected Google Photos dylib.
