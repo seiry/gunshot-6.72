@@ -144,6 +144,80 @@ func TestClearFailedRemovesFailedJobsAndMedia(t *testing.T) {
 	}
 }
 
+func TestClearAllRemovesAllJobsAndMedia(t *testing.T) {
+	e := newEngine(t, nil)
+	importNamed := func(name, data string) *Job {
+		t.Helper()
+		r := Request{Account: "a@example.com", Quality: "original", Resources: []Resource{{Name: name, Size: int64(len(data))}}}
+		v, err := e.begin(r, "photos")
+		if err != nil {
+			t.Fatal(err)
+		}
+		j := e.find(v.(map[string]any)["id"].(string))
+		if err = e.appendChunk(j, Request{Index: 0, Offset: 0, Data: []byte(data)}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = e.seal(j); err != nil {
+			t.Fatal(err)
+		}
+		return j
+	}
+	pending := importNamed("pending.jpg", "1")
+	failed := importNamed("failed.jpg", "2")
+	completed := importNamed("completed.jpg", "3")
+	failed.State = "failed"
+	completed.State = "completed"
+	cancelled := false
+	e.active[pending.ID] = func() { cancelled = true }
+	if err := e.save(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(e.jobDir(failed.ID)); err != nil {
+		t.Fatalf("job staging directory missing before cleanup: %v", err)
+	}
+
+	backing := e.state.Jobs
+	if _, err := e.handle(Request{Op: "clear_all"}, "settings"); err != nil {
+		t.Fatal(err)
+	}
+	if !cancelled {
+		t.Fatal("clear_all did not cancel active job runner")
+	}
+	if len(e.jobsByID) != 0 || len(e.state.Jobs) != 0 {
+		t.Fatal("clear_all did not remove all jobs from queue and index")
+	}
+	for _, j := range []*Job{pending, failed, completed} {
+		if _, err := os.Stat(e.jobDir(j.ID)); !os.IsNotExist(err) {
+			t.Fatalf("job staging directory was not deleted for %s: %v", j.ID, err)
+		}
+		if _, err := e.handle(Request{Op: "job", ID: j.ID}, "photos"); err == nil {
+			t.Fatal("removed job remains accessible through the protocol")
+		}
+	}
+	for _, j := range backing {
+		if j != nil {
+			t.Fatal("removed job retained by the queue backing array")
+		}
+	}
+	reopened, err := Open(e.root, nil)
+	if err != nil || len(reopened.state.Jobs) != 0 || len(reopened.jobsByID) != 0 {
+		t.Fatalf("empty queue did not persist after restart: %v", err)
+	}
+	path := filepath.Join(e.root, "state.json")
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.handle(Request{Op: "clear_all"}, "settings"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.Stat(path)
+	if err != nil || !os.SameFile(before, after) {
+		t.Fatalf("empty clear_all rewrote the atomic state file: %v", err)
+	}
+}
+
 
 func TestChangedOptionsAndRetryArePersisted(t *testing.T) {
 	e := newEngine(t, nil)
