@@ -67,6 +67,12 @@ These are requests, not guarantees. Verify original-data availability and Google
 
 PhotoKit uploads use original resources without re-encoding, including both Live Photo components. The queue supports progress, retry, cancellation and restart recovery. Retries restart the file transfer. An interrupted commit with an unknown outcome needs manual review/retry and may produce duplicates. Cancellation does not delete media already saved in Google Photos.
 
+Under **GoToHP settings → Queue management**, you can manage queued and completed jobs:
+- **Retry failed uploads**: Resets retry counts and re-enqueues all failed items.
+- **Clear failed uploads**: Removes failed items and deletes their staged files on disk.
+- **Clear completed history**: Removes completed and cancelled items from upload history.
+- **Clear all tasks**: Cancels any in-flight uploads, purges all pending and historical jobs, and removes all staging data.
+
 ## Languages
 
 English and Japanese are included. Choose **GoToHP settings → Appearance → Language**; unsupported device languages fall back to English. No separate translation bundle is needed. [Add translations](docs/localization.md).
