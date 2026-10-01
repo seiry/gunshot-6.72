@@ -52,10 +52,10 @@ device_type=next(d for d in types if d['name']=='iPhone 16 Pro')
 udid=run('xcrun','simctl','create','GoToHP Settings CI',device_type['identifier'],runtime['identifier'])
 print('Fixture device:',udid,runtime['name'],flush=True)
 subprocess.run(['xcrun','simctl','boot',udid],check=True,timeout=90)
-subprocess.run(['xcrun','simctl','bootstatus',udid,'-b'],check=True,timeout=240)
+subprocess.run(['xcrun','simctl','bootstatus',udid,'-b'],check=True,timeout=180)
 app='.build/settings-smoke/GoToHPSettingsFixture.app';bundle='dev.tqmane.gunshot.settingsfixture'
 print('Installing settings fixture',flush=True)
-subprocess.run(['xcrun','simctl','install',udid,app],check=True,timeout=240)
+subprocess.run(['xcrun','simctl','install',udid,app],check=True,timeout=120)
 # Keep UIDesignRequiresCompatibility=YES in the fixture, but opt this launch
 # back into the iOS 26 design before UIApplicationMain. This models the same
 # early user-default override used by the injected Google Photos dylib.
@@ -71,7 +71,7 @@ prefs.write_bytes(plistlib.dumps(prelaunch,fmt=plistlib.FMT_BINARY))
 print('Launching settings fixture',flush=True)
 launch_error=None
 try:
- subprocess.run(['xcrun','simctl','launch','--console',udid,bundle],check=True,timeout=180)
+ subprocess.run(['xcrun','simctl','launch','--console',udid,bundle],check=True,timeout=120)
 except (subprocess.CalledProcessError,subprocess.TimeoutExpired) as error:
  launch_error=str(error)
  print(launch_error)
