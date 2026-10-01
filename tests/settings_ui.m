@@ -148,6 +148,39 @@ static void CheckStationaryPolling(GSPanel *panel,UIWindow *window,void(^next)(v
   },[NSDate dateWithTimeIntervalSinceNow:5]);
  },[NSDate dateWithTimeIntervalSinceNow:30]);
 }
+static void CheckDimmingLifecycle(UIWindow *window, void(^next)(void)) {
+ if(GSScreenDimmedSnapshot()){Finish(NO,@"initial state must not be dimmed");return;}
+ GSSimulateStateForTest(@NO,@YES);
+ GSSetDimInactivityIntervalForTest(0.05);
+ dispatch_after(dispatch_time(DISPATCH_TIME_NOW,100*NSEC_PER_MSEC),dispatch_get_main_queue(),^{
+  if(GSScreenDimmedSnapshot()){Finish(NO,@"inactive state must reject dimming");return;}
+  CGFloat savedBrightness=UIScreen.mainScreen.brightness;
+  UIScreen.mainScreen.brightness=0.02f;
+  GSSimulateStateForTest(@YES,@YES);
+  Await(^BOOL{return GSScreenDimmedSnapshot()&&fabs(UIScreen.mainScreen.brightness)<0.001f;},^{
+   UIView *overlay=GSDimOverlayViewSnapshot();
+   if(!overlay||overlay.hidden||overlay.alpha<0.9f||overlay.superview!=window){Finish(NO,@"production dim overlay must be visible on window");return;}
+   GSRecordTouchForTest();
+   if(GSScreenDimmedSnapshot()){Finish(NO,@"screen must wake after touch");return;}
+   if(fabs(UIScreen.mainScreen.brightness-0.02f)>0.005f){Finish(NO,@"wake must restore exact brightness 0.02 without clamp");return;}
+   Await(^BOOL{return GSScreenDimmedSnapshot()&&fabs(UIScreen.mainScreen.brightness)<0.001f;},^{
+    [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationWillResignActiveNotification object:nil];
+    if(GSScreenDimmedSnapshot()){Finish(NO,@"WillResignActive must immediately wake dimmed screen");return;}
+    if(fabs(UIScreen.mainScreen.brightness-0.02f)>0.005f){Finish(NO,@"WillResignActive must restore brightness");return;}
+    GSSimulateStateForTest(@YES,@YES);
+    Await(^BOOL{return GSScreenDimmedSnapshot()&&fabs(UIScreen.mainScreen.brightness)<0.001f;},^{
+     GSSimulateStateForTest(@YES,@NO);
+     if(GSScreenDimmedSnapshot()){Finish(NO,@"backup completion must immediately wake dimmed screen");return;}
+     if(fabs(UIScreen.mainScreen.brightness-0.02f)>0.005f){Finish(NO,@"backup completion must restore brightness");return;}
+     GSSimulateStateForTest(nil,nil);
+     GSSetDimInactivityIntervalForTest(-1.0);
+     UIScreen.mainScreen.brightness=savedBrightness;
+     next();
+    },[NSDate dateWithTimeIntervalSinceNow:5]);
+   },[NSDate dateWithTimeIntervalSinceNow:5]);
+  },[NSDate dateWithTimeIntervalSinceNow:5]);
+ });
+}
 #include "photos_glass_fixture.h"
 @interface GSFixtureScene : UIResponder <UIWindowSceneDelegate>
 @property(nonatomic,strong) UIWindow *window;
@@ -258,23 +291,7 @@ static void CheckStationaryPolling(GSPanel *panel,UIWindow *window,void(^next)(v
   if(GSBackupDimmingEnabled()){Finish(NO,@"auto-dim opt-out failed");return;}
   dimToggle.on=YES;[dimToggle sendActionsForControlEvents:UIControlEventValueChanged];
   if(!GSBackupDimmingEnabled()){Finish(NO,@"auto-dim opt-in failed");return;}
-  if(GSScreenDimmedSnapshot()){Finish(NO,@"initial state must not be dimmed");return;}
-  CGFloat savedBrightness=UIScreen.mainScreen.brightness;
-  UIScreen.mainScreen.brightness=0.02f;
-  GSTriggerDimScreenForTest();
-  if(!GSScreenDimmedSnapshot()){Finish(NO,@"screen must be dimmed after trigger");return;}
-  if(fabs(UIScreen.mainScreen.brightness)>0.001f){Finish(NO,@"brightness must be 0 when dimmed");return;}
-  UIView *overlay=GSDimOverlayViewSnapshot();
-  if(!overlay||overlay.hidden||overlay.alpha<0.9f||overlay.superview!=self.window){Finish(NO,@"dim overlay must be visible on window");return;}
-  GSRecordTouchForTest();
-  if(GSScreenDimmedSnapshot()){Finish(NO,@"screen must wake after touch");return;}
-  if(fabs(UIScreen.mainScreen.brightness-0.02f)>0.005f){Finish(NO,@"wake must restore exact brightness 0.02 without clamp");return;}
-  GSTriggerDimScreenForTest();
-  if(!GSScreenDimmedSnapshot()){Finish(NO,@"dim trigger failed before resign active");return;}
-  [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationWillResignActiveNotification object:nil];
-  if(GSScreenDimmedSnapshot()){Finish(NO,@"WillResignActive must immediately wake dimmed screen");return;}
-  if(fabs(UIScreen.mainScreen.brightness-0.02f)>0.005f){Finish(NO,@"WillResignActive must restore brightness");return;}
-  UIScreen.mainScreen.brightness=savedBrightness;
+  CheckDimmingLifecycle(self.window,^{
   Capture(self.window,@"settings-english.png");
   GSSetLanguage(@"ja");[panel viewWillAppear:NO];
   [panel.tableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:7] atScrollPosition:UITableViewScrollPositionBottom animated:NO];
@@ -297,7 +314,7 @@ static void CheckStationaryPolling(GSPanel *panel,UIWindow *window,void(^next)(v
         // An empty queue has revision zero and must not manufacture completion.
         if(NativeRefreshes){Finish(NO,@"empty queue incorrectly announced completion");return;}
         CheckRealSheetPresentation(Panel(root),^{
-         Finish(YES,@"detached, nested, repeated and nil-host presentation; real Liquid Glass action-sheet presentation/dismissal; stationary polling and changed-snapshot anchor retained; settings rendered; real jailed runtime online, launch completion observer active and authorization snapshot nonblocking");
+         Finish(YES,@"detached, nested, repeated and nil-host presentation; real Liquid Glass action-sheet presentation/dismissal; stationary polling and changed-snapshot anchor retained; settings rendered; real jailed runtime online, launch completion observer active and authorization snapshot nonblocking; auto-dimming screen, exact brightness restoration and deactivate lifecycle verified");
         });
        },[NSDate dateWithTimeIntervalSinceNow:15]);
       }];
@@ -305,6 +322,7 @@ static void CheckStationaryPolling(GSPanel *panel,UIWindow *window,void(^next)(v
     },[NSDate dateWithTimeIntervalSinceNow:15]);
    }];
   }];
+  });
   });
  },[NSDate dateWithTimeIntervalSinceNow:15]);
  },[NSDate dateWithTimeIntervalSinceNow:30]);

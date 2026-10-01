@@ -16,5 +16,6 @@ FOUNDATION_EXPORT void GSSetBackupDimming(BOOL enabled);
 FOUNDATION_EXPORT BOOL GSScreenDimmedSnapshot(void);
 FOUNDATION_EXPORT CGFloat GSScreenOriginalBrightnessSnapshot(void);
 FOUNDATION_EXPORT UIView *GSDimOverlayViewSnapshot(void);
-FOUNDATION_EXPORT void GSTriggerDimScreenForTest(void);
+FOUNDATION_EXPORT void GSSimulateStateForTest(NSNumber *active, NSNumber *backupActive);
+FOUNDATION_EXPORT void GSSetDimInactivityIntervalForTest(NSTimeInterval interval);
 FOUNDATION_EXPORT void GSRecordTouchForTest(void);

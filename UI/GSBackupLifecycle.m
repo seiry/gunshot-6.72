@@ -16,6 +16,10 @@ static NSTimer *GSIdleDimTimer;
 static UIView *GSDimOverlayView;
 static UILabel *GSDimOverlayLabel;
 
+static NSNumber *GSSimulatedActiveForTest;
+static NSNumber *GSSimulatedBackupActiveForTest;
+static NSTimeInterval GSDimInactivityIntervalOverride = -1.0;
+
 static void GSWakeScreen(BOOL animated);
 static void GSResetIdleDimTimer(void);
 static void GSDimScreen(void);
@@ -60,7 +64,38 @@ UIView *GSDimOverlayViewSnapshot(void) {
  return GSDimOverlayView;
 }
 
+void GSSimulateStateForTest(NSNumber *active, NSNumber *backupActive) {
+ GSSimulatedActiveForTest = active;
+ GSSimulatedBackupActiveForTest = backupActive;
+ if (!NSThread.isMainThread) {
+  dispatch_sync(dispatch_get_main_queue(), ^{
+   if (GSSimulatedActiveForTest != nil && ![GSSimulatedActiveForTest boolValue]) {
+    GSWakeScreen(NO);
+   }
+   GSUpdateIdleTimer();
+  });
+ } else {
+  if (GSSimulatedActiveForTest != nil && ![GSSimulatedActiveForTest boolValue]) {
+   GSWakeScreen(NO);
+  }
+  GSUpdateIdleTimer();
+ }
+}
+
+void GSSetDimInactivityIntervalForTest(NSTimeInterval interval) {
+ GSDimInactivityIntervalOverride = interval;
+}
+
+void GSRecordTouchForTest(void) {
+ GSBackupLifecycleDidReceiveTouch();
+}
+
+static NSTimeInterval GSDimInterval(void) {
+ return GSDimInactivityIntervalOverride > 0 ? GSDimInactivityIntervalOverride : GSDimInactivityInterval;
+}
+
 static BOOL GSSampleHostActive(void) {
+ if (GSSimulatedActiveForTest != nil) return [GSSimulatedActiveForTest boolValue];
  BOOL active = UIApplication.sharedApplication.applicationState == UIApplicationStateActive;
  for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
   if (![scene isKindOfClass:UIWindowScene.class]) continue;
@@ -68,6 +103,13 @@ static BOOL GSSampleHostActive(void) {
   if (scene.activationState == UISceneActivationStateForegroundInactive || scene.activationState == UISceneActivationStateBackground) return NO;
  }
  return active;
+}
+
+static BOOL GSIsBackupRunning(void) {
+ if (GSSimulatedBackupActiveForTest != nil) return [GSSimulatedBackupActiveForTest boolValue];
+ BOOL queueActive = GSUploadQueueActive();
+ BOOL batchActive = [GSBatchImportSnapshot()[@"active"] boolValue];
+ return queueActive || batchActive;
 }
 
 static void GSWakeScreen(BOOL animated) {
@@ -96,9 +138,8 @@ static void GSDimScreen(void) {
  NSCAssert(NSThread.isMainThread, @"Screen dim must run on main");
  BOOL active = GSSampleHostActive();
  BOOL foreground = GSUploadHostForeground();
- BOOL queueActive = GSUploadQueueActive();
- BOOL batchActive = [GSBatchImportSnapshot()[@"active"] boolValue];
- BOOL shouldKeepAwake = active && foreground && (queueActive || batchActive);
+ BOOL backupRunning = GSIsBackupRunning();
+ BOOL shouldKeepAwake = active && foreground && backupRunning;
  if (!shouldKeepAwake || !GSBackupDimmingEnabled() || GSScreenDimmed) return;
 
  UIWindow *targetWindow = nil;
@@ -159,44 +200,6 @@ static void GSDimScreen(void) {
  }];
 }
 
-void GSTriggerDimScreenForTest(void) {
- if (!NSThread.isMainThread) {
-  dispatch_sync(dispatch_get_main_queue(), ^{ GSTriggerDimScreenForTest(); });
-  return;
- }
- UIWindow *targetWindow = nil;
- for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-  if (![scene isKindOfClass:UIWindowScene.class]) continue;
-  for (UIWindow *w in ((UIWindowScene *)scene).windows) {
-   if (w.isKeyWindow) { targetWindow = w; break; }
-  }
-  if (targetWindow) break;
- }
- if (!targetWindow) targetWindow = UIApplication.sharedApplication.windows.firstObject;
- if (!targetWindow) return;
-
- if (!GSDimOverlayView) {
-  GSDimOverlayView = [[GSDimOverlayViewClass alloc] initWithFrame:targetWindow.bounds];
-  GSDimOverlayView.backgroundColor = UIColor.blackColor;
-  GSDimOverlayView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
- }
- GSDimOverlayView.frame = targetWindow.bounds;
- if (GSDimOverlayView.superview != targetWindow) [targetWindow addSubview:GSDimOverlayView];
- [targetWindow bringSubviewToFront:GSDimOverlayView];
-
- if (GSOriginalBrightness < 0.0f) {
-  GSOriginalBrightness = UIScreen.mainScreen.brightness;
- }
- GSScreenDimmed = YES;
- GSDimOverlayView.hidden = NO;
- GSDimOverlayView.alpha = 1.0f;
- UIScreen.mainScreen.brightness = 0.0f;
-}
-
-void GSRecordTouchForTest(void) {
- GSBackupLifecycleDidReceiveTouch();
-}
-
 static void GSResetIdleDimTimer(void) {
  NSCAssert(NSThread.isMainThread, @"Timer reset must run on main");
  [GSIdleDimTimer invalidate];
@@ -204,12 +207,11 @@ static void GSResetIdleDimTimer(void) {
 
  BOOL active = GSSampleHostActive();
  BOOL foreground = GSUploadHostForeground();
- BOOL queueActive = GSUploadQueueActive();
- BOOL batchActive = [GSBatchImportSnapshot()[@"active"] boolValue];
- BOOL shouldKeepAwake = active && foreground && (queueActive || batchActive);
+ BOOL backupRunning = GSIsBackupRunning();
+ BOOL shouldKeepAwake = active && foreground && backupRunning;
 
  if (shouldKeepAwake && GSBackupDimmingEnabled() && !GSScreenDimmed) {
-  GSIdleDimTimer = [NSTimer scheduledTimerWithTimeInterval:GSDimInactivityInterval
+  GSIdleDimTimer = [NSTimer scheduledTimerWithTimeInterval:GSDimInterval()
                                                    repeats:NO
                                                      block:^(NSTimer *timer) {
    GSDimScreen();
@@ -253,9 +255,8 @@ static void GSInstallTouchMonitoring(void) {
 static void GSUpdateIdleTimer(void){
  NSCAssert(NSThread.isMainThread,@"Idle timer must run on main");
  BOOL foreground=GSUploadHostForeground();
- BOOL queueActive=GSUploadQueueActive();
- BOOL batchActive=[GSBatchImportSnapshot()[@"active"]boolValue];
- BOOL shouldKeepAwake=foreground&&(queueActive||batchActive);
+ BOOL backupRunning=GSIsBackupRunning();
+ BOOL shouldKeepAwake=foreground&&backupRunning;
  if(shouldKeepAwake){
   if(!UIApplication.sharedApplication.idleTimerDisabled){
    UIApplication.sharedApplication.idleTimerDisabled=YES;
