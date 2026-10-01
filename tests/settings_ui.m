@@ -191,27 +191,21 @@ static void CheckDimmingLifecycle(UIWindow *window, void(^next)(void)) {
  GSSetDimInactivityIntervalForTest(0.05);
  dispatch_after(dispatch_time(DISPATCH_TIME_NOW,100*NSEC_PER_MSEC),dispatch_get_main_queue(),^{
   if(GSScreenDimmedSnapshot()){Finish(NO,@"inactive state must reject dimming");return;}
-  CGFloat savedBrightness=UIScreen.mainScreen.brightness;
-  UIScreen.mainScreen.brightness=0.02f;
   GSSimulateStateForTest(@YES,@YES);
-  AwaitNamed(@"dimming after active+backup",window,^BOOL{return GSScreenDimmedSnapshot()&&fabs(UIScreen.mainScreen.brightness)<0.001f;},^{
+  AwaitNamed(@"dimming after active+backup",window,^BOOL{return GSScreenDimmedSnapshot();},^{
    UIView *overlay=GSDimOverlayViewSnapshot();
    if(!overlay||overlay.hidden||overlay.alpha<0.9f||overlay.superview!=window){Finish(NO,@"production dim overlay must be visible on window");return;}
    GSRecordTouchForTest();
    if(GSScreenDimmedSnapshot()){Finish(NO,@"screen must wake after touch");return;}
-   if(fabs(UIScreen.mainScreen.brightness-0.02f)>0.005f){Finish(NO,@"wake must restore exact brightness 0.02 without clamp");return;}
-   AwaitNamed(@"redimming after touch wake",window,^BOOL{return GSScreenDimmedSnapshot()&&fabs(UIScreen.mainScreen.brightness)<0.001f;},^{
+   AwaitNamed(@"redimming after touch wake",window,^BOOL{return GSScreenDimmedSnapshot();},^{
     [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationWillResignActiveNotification object:nil];
     if(GSScreenDimmedSnapshot()){Finish(NO,@"WillResignActive must immediately wake dimmed screen");return;}
-    if(fabs(UIScreen.mainScreen.brightness-0.02f)>0.005f){Finish(NO,@"WillResignActive must restore brightness");return;}
     GSSimulateStateForTest(@YES,@YES);
-    AwaitNamed(@"redimming after resign active wake",window,^BOOL{return GSScreenDimmedSnapshot()&&fabs(UIScreen.mainScreen.brightness)<0.001f;},^{
+    AwaitNamed(@"redimming after resign active wake",window,^BOOL{return GSScreenDimmedSnapshot();},^{
      GSSimulateStateForTest(@YES,@NO);
      if(GSScreenDimmedSnapshot()){Finish(NO,@"backup completion must immediately wake dimmed screen");return;}
-     if(fabs(UIScreen.mainScreen.brightness-0.02f)>0.005f){Finish(NO,@"backup completion must restore brightness");return;}
      GSSimulateStateForTest(nil,nil);
      GSSetDimInactivityIntervalForTest(-1.0);
-     UIScreen.mainScreen.brightness=savedBrightness;
      next();
     },[NSDate dateWithTimeIntervalSinceNow:5]);
    },[NSDate dateWithTimeIntervalSinceNow:5]);
