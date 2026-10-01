@@ -119,9 +119,6 @@ jobs:
         with:
           ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
           submodules: recursive
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.26.0'
       - name: Sideload SSO compatibility
         run: |
           mkdir -p .build
@@ -186,28 +183,65 @@ jobs:
         run: |
           clang -fobjc-arc -framework Foundation tests/photos_compatibility.m -o .build/photos-compatibility-test
           .build/photos-compatibility-test
-          for version in 6.72.0 7.20.1 7.50.0 7.93.0 8.0.0 unknown; do
-            export GS_TEST_PHOTOS_VERSION="$version"
-            .build/unlimited-storage-test
-            .build/unlimited-storage-test incompatible-abi
-            .build/unlimited-storage-test bento-only
-            .build/native-routing-test
-            .build/silent-jailed-routing-test
-            .build/backup-requests-test
-            .build/photos-integration-test
-            .build/upload-diagnostics-test
-            .build/native-account-test
-            .build/account-menu-test
-            .build/backup-requests-legacy-test
-            .build/photos-integration-legacy-test
-            .build/native-account-legacy-test
-          done
       - name: Bulk photo import
         run: |
           clang -fobjc-arc -framework Foundation -Itests/native-shims UI/GSBatchImport.m tests/batch_import.m -o .build/batch-import-test
           .build/batch-import-test
           clang -fobjc-arc -framework Foundation -Itests/native-shims UI/GSBatchImport.m UI/GSExporter.m tests/exporter_batch.m -o .build/exporter-batch-test
           .build/exporter-batch-test
+      - name: Stage test binaries
+        run: |
+          mkdir -p test-binaries
+          cp .build/*-test test-binaries/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-binaries
+          path: test-binaries/
+          if-no-files-found: error
+  api-version-regression:
+    name: regression (${{ matrix.version }})
+    needs: [jailed-test]
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ['6.72.0', '7.20.1', '7.50.0', '7.93.0', '8.0.0', 'unknown']
+    steps:
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+          path: .build
+      - name: Grant executable permissions
+        run: chmod +x .build/*
+      - name: Run version regression tests
+        env:
+          GS_TEST_PHOTOS_VERSION: ${{ matrix.version }}
+        run: |
+          .build/unlimited-storage-test
+          .build/unlimited-storage-test incompatible-abi
+          .build/unlimited-storage-test bento-only
+          .build/native-routing-test
+          .build/silent-jailed-routing-test
+          .build/backup-requests-test
+          .build/photos-integration-test
+          .build/upload-diagnostics-test
+          .build/native-account-test
+          .build/account-menu-test
+          .build/backup-requests-legacy-test
+          .build/photos-integration-legacy-test
+          .build/native-account-legacy-test
+  settings-ui-smoke:
+    name: UIKit settings smoke
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
+          submodules: recursive
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
       - name: UIKit settings presentation smoke
         timeout-minutes: 8
         run: bash scripts/test-settings-ui.sh
