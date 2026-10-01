@@ -258,6 +258,23 @@ static void CheckStationaryPolling(GSPanel *panel,UIWindow *window,void(^next)(v
   if(GSBackupDimmingEnabled()){Finish(NO,@"auto-dim opt-out failed");return;}
   dimToggle.on=YES;[dimToggle sendActionsForControlEvents:UIControlEventValueChanged];
   if(!GSBackupDimmingEnabled()){Finish(NO,@"auto-dim opt-in failed");return;}
+  if(GSScreenDimmedSnapshot()){Finish(NO,@"initial state must not be dimmed");return;}
+  CGFloat savedBrightness=UIScreen.mainScreen.brightness;
+  UIScreen.mainScreen.brightness=0.02f;
+  GSTriggerDimScreenForTest();
+  if(!GSScreenDimmedSnapshot()){Finish(NO,@"screen must be dimmed after trigger");return;}
+  if(fabs(UIScreen.mainScreen.brightness)>0.001f){Finish(NO,@"brightness must be 0 when dimmed");return;}
+  UIView *overlay=GSDimOverlayViewSnapshot();
+  if(!overlay||overlay.hidden||overlay.alpha<0.9f||overlay.superview!=self.window){Finish(NO,@"dim overlay must be visible on window");return;}
+  GSRecordTouchForTest();
+  if(GSScreenDimmedSnapshot()){Finish(NO,@"screen must wake after touch");return;}
+  if(fabs(UIScreen.mainScreen.brightness-0.02f)>0.005f){Finish(NO,@"wake must restore exact brightness 0.02 without clamp");return;}
+  GSTriggerDimScreenForTest();
+  if(!GSScreenDimmedSnapshot()){Finish(NO,@"dim trigger failed before resign active");return;}
+  [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationWillResignActiveNotification object:nil];
+  if(GSScreenDimmedSnapshot()){Finish(NO,@"WillResignActive must immediately wake dimmed screen");return;}
+  if(fabs(UIScreen.mainScreen.brightness-0.02f)>0.005f){Finish(NO,@"WillResignActive must restore brightness");return;}
+  UIScreen.mainScreen.brightness=savedBrightness;
   Capture(self.window,@"settings-english.png");
   GSSetLanguage(@"ja");[panel viewWillAppear:NO];
   [panel.tableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:7] atScrollPosition:UITableViewScrollPositionBottom animated:NO];

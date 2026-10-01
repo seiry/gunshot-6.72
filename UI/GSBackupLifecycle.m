@@ -48,6 +48,28 @@ void GSSetBackupDimming(BOOL enabled) {
  }
 }
 
+BOOL GSScreenDimmedSnapshot(void) {
+ return GSScreenDimmed;
+}
+
+CGFloat GSScreenOriginalBrightnessSnapshot(void) {
+ return GSOriginalBrightness;
+}
+
+UIView *GSDimOverlayViewSnapshot(void) {
+ return GSDimOverlayView;
+}
+
+static BOOL GSSampleHostActive(void) {
+ BOOL active = UIApplication.sharedApplication.applicationState == UIApplicationStateActive;
+ for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+  if (![scene isKindOfClass:UIWindowScene.class]) continue;
+  if (scene.activationState == UISceneActivationStateForegroundActive) return YES;
+  if (scene.activationState == UISceneActivationStateForegroundInactive || scene.activationState == UISceneActivationStateBackground) return NO;
+ }
+ return active;
+}
+
 static void GSWakeScreen(BOOL animated) {
  NSCAssert(NSThread.isMainThread, @"Screen wake must run on main");
  [GSIdleDimTimer invalidate];
@@ -55,7 +77,6 @@ static void GSWakeScreen(BOOL animated) {
  if (GSScreenDimmed) {
   GSScreenDimmed = NO;
   CGFloat targetBrightness = GSOriginalBrightness >= 0.0f ? GSOriginalBrightness : UIScreen.mainScreen.brightness;
-  if (targetBrightness < 0.05f) targetBrightness = 0.3f;
   GSOriginalBrightness = -1.0f;
   UIScreen.mainScreen.brightness = targetBrightness;
   if (animated && GSDimOverlayView) {
@@ -73,10 +94,11 @@ static void GSWakeScreen(BOOL animated) {
 
 static void GSDimScreen(void) {
  NSCAssert(NSThread.isMainThread, @"Screen dim must run on main");
+ BOOL active = GSSampleHostActive();
  BOOL foreground = GSUploadHostForeground();
  BOOL queueActive = GSUploadQueueActive();
  BOOL batchActive = [GSBatchImportSnapshot()[@"active"] boolValue];
- BOOL shouldKeepAwake = foreground && (queueActive || batchActive);
+ BOOL shouldKeepAwake = active && foreground && (queueActive || batchActive);
  if (!shouldKeepAwake || !GSBackupDimmingEnabled() || GSScreenDimmed) return;
 
  UIWindow *targetWindow = nil;
@@ -124,7 +146,6 @@ static void GSDimScreen(void) {
 
  if (GSOriginalBrightness < 0.0f) {
   GSOriginalBrightness = UIScreen.mainScreen.brightness;
-  if (GSOriginalBrightness < 0.05f) GSOriginalBrightness = 0.3f;
  }
 
  GSScreenDimmed = YES;
@@ -138,15 +159,54 @@ static void GSDimScreen(void) {
  }];
 }
 
+void GSTriggerDimScreenForTest(void) {
+ if (!NSThread.isMainThread) {
+  dispatch_sync(dispatch_get_main_queue(), ^{ GSTriggerDimScreenForTest(); });
+  return;
+ }
+ UIWindow *targetWindow = nil;
+ for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+  if (![scene isKindOfClass:UIWindowScene.class]) continue;
+  for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+   if (w.isKeyWindow) { targetWindow = w; break; }
+  }
+  if (targetWindow) break;
+ }
+ if (!targetWindow) targetWindow = UIApplication.sharedApplication.windows.firstObject;
+ if (!targetWindow) return;
+
+ if (!GSDimOverlayView) {
+  GSDimOverlayView = [[GSDimOverlayViewClass alloc] initWithFrame:targetWindow.bounds];
+  GSDimOverlayView.backgroundColor = UIColor.blackColor;
+  GSDimOverlayView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+ }
+ GSDimOverlayView.frame = targetWindow.bounds;
+ if (GSDimOverlayView.superview != targetWindow) [targetWindow addSubview:GSDimOverlayView];
+ [targetWindow bringSubviewToFront:GSDimOverlayView];
+
+ if (GSOriginalBrightness < 0.0f) {
+  GSOriginalBrightness = UIScreen.mainScreen.brightness;
+ }
+ GSScreenDimmed = YES;
+ GSDimOverlayView.hidden = NO;
+ GSDimOverlayView.alpha = 1.0f;
+ UIScreen.mainScreen.brightness = 0.0f;
+}
+
+void GSRecordTouchForTest(void) {
+ GSBackupLifecycleDidReceiveTouch();
+}
+
 static void GSResetIdleDimTimer(void) {
  NSCAssert(NSThread.isMainThread, @"Timer reset must run on main");
  [GSIdleDimTimer invalidate];
  GSIdleDimTimer = nil;
 
+ BOOL active = GSSampleHostActive();
  BOOL foreground = GSUploadHostForeground();
  BOOL queueActive = GSUploadQueueActive();
  BOOL batchActive = [GSBatchImportSnapshot()[@"active"] boolValue];
- BOOL shouldKeepAwake = foreground && (queueActive || batchActive);
+ BOOL shouldKeepAwake = active && foreground && (queueActive || batchActive);
 
  if (shouldKeepAwake && GSBackupDimmingEnabled() && !GSScreenDimmed) {
   GSIdleDimTimer = [NSTimer scheduledTimerWithTimeInterval:GSDimInactivityInterval
@@ -201,7 +261,7 @@ static void GSUpdateIdleTimer(void){
    UIApplication.sharedApplication.idleTimerDisabled=YES;
   }
   GSGunshotAcquiredIdleTimer=YES;
-  if (!GSScreenDimmed && !GSIdleDimTimer) {
+  if (!GSScreenDimmed && !GSIdleDimTimer && GSSampleHostActive()) {
    GSResetIdleDimTimer();
   }
  }else{
@@ -218,7 +278,7 @@ static void GSSampleHost(void){
  for(UIScene *scene in UIApplication.sharedApplication.connectedScenes)
   if(scene.activationState==UISceneActivationStateForegroundActive||scene.activationState==UISceneActivationStateForegroundInactive){foreground=YES;break;}
  GSSetUploadHostForeground(foreground);
- if (!foreground) {
+ if (!GSSampleHostActive()) {
   GSWakeScreen(NO);
  }
  GSUpdateIdleTimer();
@@ -230,7 +290,14 @@ void GSStartBackupIntegration(void){
   GSInstallNativeRouting();GSInstallPhotosIntegration();
   GSInstallTouchMonitoring();
   for(NSString *name in @[UIApplicationDidBecomeActiveNotification,UIApplicationDidEnterBackgroundNotification,UIApplicationWillEnterForegroundNotification,UIApplicationWillResignActiveNotification,UISceneDidActivateNotification,UISceneWillDeactivateNotification,UISceneDidEnterBackgroundNotification,UISceneWillEnterForegroundNotification])
-   [NSNotificationCenter.defaultCenter addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note){GSSampleHost();}];
+   [NSNotificationCenter.defaultCenter addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note){
+    if([name isEqual:UIApplicationWillResignActiveNotification]||[name isEqual:UISceneWillDeactivateNotification]||[name isEqual:UIApplicationDidEnterBackgroundNotification]||[name isEqual:UISceneDidEnterBackgroundNotification]){
+     GSWakeScreen(NO);
+     [GSIdleDimTimer invalidate];
+     GSIdleDimTimer=nil;
+    }
+    GSSampleHost();
+   }];
   [NSNotificationCenter.defaultCenter addObserverForName:GSUploadMonitorStateDidChangeNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note){GSUpdateIdleTimer();}];
   GSSampleHost();
  });
